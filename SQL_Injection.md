@@ -1,4 +1,3 @@
-````markdown
 # SQL Injection Security Testing
 
 ## Objective and Scope
@@ -15,7 +14,7 @@ The SQL Injection functionality uses a query structured around the supplied User
 
 ```sql
 SELECT first_name, last_name FROM users WHERE user_id = $id
-````
+```
 
 Because user-controlled input can influence the query, specially crafted input can change the conditions applied by the database.
 
@@ -116,6 +115,3 @@ The DVWA exercise successfully demonstrated a **SQL Injection vulnerability** in
 Although UNION-based extraction was tested, it was **not successfully demonstrated** in this environment and was therefore not presented as a successful finding.
 
 The vulnerability can be mitigated primarily through **prepared statements or parameterized queries**, supported by input validation, least-privilege database access, and secure error handling.
-
-```
-```
