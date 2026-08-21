@@ -1,72 +1,121 @@
+````markdown
 # SQL Injection Security Testing
 
 ## Objective and Scope
 
-This section documents the execution and analysis of a **SQL Injection attack** against **Damn Vulnerable Web Application (DVWA)** deployed in a controlled **Kali Linux** laboratory environment. The objective was to demonstrate how SQL Injection can be used to manipulate database queries and access sensitive information, followed by an explanation of the appropriate mitigation techniques.
+This section documents the execution and analysis of a **SQL Injection vulnerability** against **Damn Vulnerable Web Application (DVWA)** deployed in a controlled **Kali Linux** laboratory environment. The objective was to demonstrate how improperly handled user input can alter the logic of a database query and to document appropriate mitigation techniques.
 
 ## 1. Vulnerability Description and Execution
 
 ### Vulnerability Discovered
 
-The SQL Injection functionality in DVWA was tested at a low security level. The application was found to incorporate user-supplied input into a database query without sufficient protection, allowing the structure of the SQL query to be manipulated.
+The SQL Injection functionality in DVWA was tested at the **Low** security level. The User ID input was found to accept specially crafted SQL expressions that could alter the behavior of the underlying database query.
+
+The SQL Injection functionality uses a query structured around the supplied User ID:
+
+```sql
+SELECT first_name, last_name FROM users WHERE user_id = $id
+````
+
+Because user-controlled input can influence the query, specially crafted input can change the conditions applied by the database.
 
 ### Exploitation Process
 
-The vulnerability was first confirmed by providing specially crafted input to the User ID field and observing the application's response.
+The vulnerability was first tested using a normal User ID:
 
-The number of columns returned by the original query was then determined using SQL query manipulation. This information was used to construct a compatible **UNION SELECT** statement.
+```text
+1
+```
 
-A UNION-based SQL Injection was subsequently performed to retrieve information from the application's database. The attack successfully demonstrated that database records containing user account information, including usernames and password hashes, could be exposed through the vulnerable functionality.
+The application returned:
 
-### Successful Data Extraction
+```text
+ID: 1
+First name: admin
+Surname: admin
+```
 
-The exploitation resulted in multiple database records being displayed through the application. The extracted information demonstrated that sensitive account data stored within the database could be accessed without using the application's intended authentication or authorization mechanisms.
+This established the normal behavior of the application.
 
-**Evidence:** Screenshots of the injection process and extracted database information are included in the accompanying security-testing evidence.
+A SQL Injection test was then performed using:
+
+```text
+1' OR '1'='1
+```
+
+Instead of returning only the record associated with User ID `1`, the application returned **multiple user records**. This demonstrated that the supplied input was able to alter the logic of the database query.
+
+This provided evidence that the User ID parameter was vulnerable to SQL Injection.
+
+### UNION Testing
+
+A UNION-based test was also attempted:
+
+```text
+1 UNION SELECT 1,2
+```
+
+However, the application displayed the supplied input rather than producing a successful UNION-based result. Therefore, **UNION-based database extraction was not considered a successful part of the test**.
+
+The testing was consequently limited to the SQL Injection behavior that could be directly demonstrated and verified through the application.
 
 ## 2. Impact
 
-The successful exploitation demonstrates that SQL Injection can allow an attacker to manipulate database queries and retrieve information that should normally remain inaccessible.
+The successful injection demonstrated that an attacker could manipulate the logic of the database query through user-controlled input.
 
-Depending on the application's database privileges and the information stored within the database, SQL Injection may result in exposure of:
+Depending on the application's database permissions and implementation, SQL Injection can potentially result in:
 
-* Usernames and account information
-* Password hashes
-* Application data
-* Other sensitive database records
+* Unauthorized access to database records
+* Exposure of user and application information
+* Modification or deletion of database data
+* Authentication bypass
+* Exposure of sensitive information stored by the application
 
-This makes SQL Injection a significant web application security vulnerability.
+In this test, the demonstrated impact was the ability to alter the query logic and cause **multiple database records to be returned instead of the expected single record**.
 
 ## 3. Mitigation and Prevention
 
-The primary mitigation for SQL Injection is to prevent user input from being interpreted as part of an SQL statement.
+The primary mitigation for SQL Injection is to ensure that user input is never interpreted as part of the SQL statement.
 
 ### Vulnerable Implementation
 
-The vulnerable approach directly incorporates user-controlled input into an SQL query:
+The vulnerable query structure directly incorporates the supplied User ID:
 
 ```php
-$user_input = $_GET['user_id'];
-$query = "SELECT ... WHERE id = '$user_input'";
+$id = $_GET['id'];
+$query = "SELECT first_name, last_name FROM users WHERE user_id = $id";
 ```
 
-This approach allows specially crafted input to influence the structure of the query.
+Because the input is incorporated directly into the query, specially crafted input can influence the query's logic.
 
 ### Recommended Mitigation
 
-Applications should use **Prepared Statements / Parameterized Queries** instead of directly concatenating user input into SQL statements.
-
-For example:
+Applications should use **Prepared Statements / Parameterized Queries**:
 
 ```php
-$stmt = $pdo->prepare("SELECT ... WHERE id = ?");
-$stmt->execute([$user_input]);
+$stmt = $pdo->prepare(
+    "SELECT first_name, last_name FROM users WHERE user_id = ?"
+);
+
+$stmt->execute([$id]);
 ```
 
-With parameterized queries, user input is treated as data rather than executable SQL syntax. This prevents an attacker from modifying the intended structure of the database query.
+With a parameterized query, the SQL structure is defined separately from the user-supplied value. The database therefore treats the supplied value as **data rather than executable SQL syntax**.
 
-Additional defensive measures can include appropriate input validation, least-privilege database accounts, secure error handling, and regular security testing.
+Additional defensive measures include:
+
+* Validating input according to the expected data type
+* Using least-privilege database accounts
+* Avoiding detailed database error messages in production
+* Performing regular security testing
 
 ## Conclusion
 
-The DVWA exercise demonstrated the security risks associated with improperly handled database input. SQL Injection can allow attackers to manipulate application queries and access sensitive information. Using prepared statements and other secure development practices significantly reduces the risk of this vulnerability.
+The DVWA exercise successfully demonstrated a **SQL Injection vulnerability** in the User ID functionality. A normal input returned a single user record, while crafted SQL input altered the query behavior and resulted in multiple records being returned.
+
+Although UNION-based extraction was tested, it was **not successfully demonstrated** in this environment and was therefore not presented as a successful finding.
+
+The vulnerability can be mitigated primarily through **prepared statements or parameterized queries**, supported by input validation, least-privilege database access, and secure error handling.
+
+```
+```
